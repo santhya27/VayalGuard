@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from "react";
 import {
   Sprout,
@@ -31,6 +30,8 @@ import {
   getWeather,
   getWeatherDescription,
 } from "./services/weather";
+
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
 
 const translations = {
   en: {
@@ -224,6 +225,47 @@ const cropLabels = {
   vegetables: { en: "Other vegetables", ta: "மற்ற காய்கறிகள்" },
   other: { en: "Other crop", ta: "மற்ற பயிர்" },
 };
+
+const KNOWN_STATES = ["Tamil Nadu", "Kerala", "Karnataka", "Andhra Pradesh", "Telangana"];
+const KNOWN_IRRIGATION = ["", "Rain-fed", "Canal", "Borewell", "Drip", "Sprinkler", "Other"];
+
+// Reads the saved profile once, when the component first mounts.
+// Village and location are deliberately NOT restored: the farmer must
+// type and confirm the location for the current forecast.
+function readSavedProfile() {
+  let s = {};
+  try {
+    s = JSON.parse(localStorage.getItem("vayalguard-profile") || "{}");
+  } catch {
+    // Ignore corrupt browser storage.
+  }
+  const cropKnown = Boolean(s.crop && cropLabels[s.crop]);
+  const stateKnown = !s.stateName || s.stateName === "Other" || KNOWN_STATES.includes(s.stateName);
+  const irrKnown = !s.irrigation || KNOWN_IRRIGATION.includes(s.irrigation);
+
+  return {
+    language: s.language === "ta" ? "ta" : "en",
+    crop: !s.crop ? "paddy" : cropKnown ? s.crop : "other",
+    customCrop: !s.crop || cropKnown ? s.customCrop ?? "" : s.crop,
+    stateName: !s.stateName ? "Tamil Nadu" : stateKnown ? s.stateName : "Other",
+    customState: stateKnown ? s.customState ?? "" : s.stateName,
+    irrigation: !s.irrigation ? "" : irrKnown ? s.irrigation : "Other",
+    customIrrigation: irrKnown ? s.customIrrigation ?? "" : s.irrigation,
+    district: s.district ?? "",
+    sowingDate: s.sowingDate ?? "",
+    harvestDate: s.harvestDate ?? "",
+    growthStage: s.growthStage ?? "",
+    tasksDone: s.tasksDone ?? {},
+  };
+}
+
+function readDismissedAlerts() {
+  try {
+    return JSON.parse(localStorage.getItem("vayalguard-dismissed-alerts") || "[]");
+  } catch {
+    return [];
+  }
+}
 
 function getForecastSeason(weather) {
   const daily = weather?.daily;
@@ -573,23 +615,26 @@ function formatDate(date, language = "en") {
 }
 
 export default function App() {
-  const [language, setLanguage] = useState("en");
+  // Saved profile is read once, on first render (no setState-in-effect needed).
+  const [saved] = useState(readSavedProfile);
+
+  const [language, setLanguage] = useState(saved.language);
   const [page, setPage] = useState("dashboard");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [village, setVillage] = useState("");
   const [location, setLocation] = useState(null);
-  const [crop, setCrop] = useState("paddy");
-  const [harvestDate, setHarvestDate] = useState("");
+  const [crop, setCrop] = useState(saved.crop);
+  const [harvestDate, setHarvestDate] = useState(saved.harvestDate);
 
   // Extended farmer profile
-  const [stateName, setStateName] = useState("Tamil Nadu");
-  const [customState, setCustomState] = useState("");
-  const [customCrop, setCustomCrop] = useState("");
-  const [customIrrigation, setCustomIrrigation] = useState("");
-  const [district, setDistrict] = useState("");
-  const [sowingDate, setSowingDate] = useState("");
-  const [growthStage, setGrowthStage] = useState("");
-  const [irrigation, setIrrigation] = useState("");
+  const [stateName, setStateName] = useState(saved.stateName);
+  const [customState, setCustomState] = useState(saved.customState);
+  const [customCrop, setCustomCrop] = useState(saved.customCrop);
+  const [customIrrigation, setCustomIrrigation] = useState(saved.customIrrigation);
+  const [district, setDistrict] = useState(saved.district);
+  const [sowingDate, setSowingDate] = useState(saved.sowingDate);
+  const [growthStage, setGrowthStage] = useState(saved.growthStage);
+  const [irrigation, setIrrigation] = useState(saved.irrigation);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveMessage, setProfileSaveMessage] = useState("");
 
@@ -598,20 +643,14 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [tasksDone, setTasksDone] = useState({});
-  const [smartAlerts, setSmartAlerts] = useState([]);
-  const [dismissedAlertKeys, setDismissedAlertKeys] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("vayalguard-dismissed-alerts") || "[]");
-    } catch {
-      return [];
-    }
-  });
+  const [tasksDone, setTasksDone] = useState(saved.tasksDone);
+  const [dismissedAlertKeys, setDismissedAlertKeys] = useState(readDismissedAlerts);
 
   const t = translations[language];
   const effectiveState = stateName === "Other" ? customState.trim() : stateName;
   const effectiveCropName = crop === "other" ? customCrop.trim() : (cropLabels[crop]?.en || crop);
   const effectiveIrrigation = irrigation === "Other" ? customIrrigation.trim() : irrigation;
+  const todayInputValue = new Date().toLocaleDateString("en-CA");
   const growthStageLabel = growthStage
     ? ({
         "Land preparation": { en: "Land preparation", ta: "நிலத் தயாரிப்பு" },
@@ -624,65 +663,25 @@ export default function App() {
       }[growthStage]?.[language] ?? growthStage)
     : "";
 
-  // Restore the profile, but never restore an old unverified
-  // location such as Singapore from the previous prototype.
+  // Index of "today" in the forecast, in the forecast location's timezone.
+  const safeTodayIndex = useMemo(() => {
+    const times = weather?.daily?.time;
+    if (!times?.length) return 0;
+    const todayText = new Intl.DateTimeFormat("en-CA", {
+      timeZone: weather.timezone || "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    return Math.max(0, times.indexOf(todayText));
+  }, [weather]);
+
+  // Keep the page language correct for screen readers and Tamil fonts.
   useEffect(() => {
-    try {
-      const saved = JSON.parse(
-        localStorage.getItem("vayalguard-profile") || "{}"
-      );
+    document.documentElement.lang = language;
+  }, [language]);
 
-      // Start with an empty location field. Never prefill an old village such as Thanjavur;
-      // the farmer must type and confirm the location for the current forecast.
-      setLocation(null);
-      setVillage("");
-
-      const knownStates = ["Tamil Nadu", "Kerala", "Karnataka", "Andhra Pradesh", "Telangana"];
-      const knownIrrigation = ["", "Rain-fed", "Canal", "Borewell", "Drip", "Sprinkler", "Other"];
-      if (saved.crop && cropLabels[saved.crop]) {
-        setCrop(saved.crop);
-      } else if (saved.crop) {
-        setCrop("other");
-        setCustomCrop(saved.crop);
-      }
-      if (saved.customCrop) setCustomCrop(saved.customCrop);
-      if (saved.harvestDate) setHarvestDate(saved.harvestDate);
-      if (saved.stateName) {
-        if (knownStates.includes(saved.stateName) || saved.stateName === "Other") {
-          setStateName(saved.stateName);
-          if (saved.customState) setCustomState(saved.customState);
-        } else {
-          setStateName("Other");
-          setCustomState(saved.stateName);
-        }
-      }
-      if (saved.customState) setCustomState(saved.customState);
-      if (saved.customIrrigation) setCustomIrrigation(saved.customIrrigation);
-      if (saved.district) setDistrict(saved.district);
-      if (saved.sowingDate) setSowingDate(saved.sowingDate);
-      if (saved.growthStage) setGrowthStage(saved.growthStage);
-      if (saved.irrigation) {
-        if (knownIrrigation.includes(saved.irrigation)) {
-          setIrrigation(saved.irrigation);
-          if (saved.customIrrigation) setCustomIrrigation(saved.customIrrigation);
-        } else {
-          setIrrigation("Other");
-          setCustomIrrigation(saved.irrigation);
-        }
-      }
-
-      if (saved.language === "en" || saved.language === "ta") {
-        setLanguage(saved.language);
-      }
-
-      if (saved.tasksDone) setTasksDone(saved.tasksDone);
-    } catch {
-      setLocation(null);
-      setVillage("");
-    }
-  }, []);
-
-  // Save all farmer profile fields in this browser.
+  // Save farmer profile fields in this browser.
   useEffect(() => {
     try {
       localStorage.setItem(
@@ -738,7 +737,7 @@ export default function App() {
     setProfileSaveMessage("");
 
     try {
-      const response = await fetch("http://localhost:5000/api/farmers", {
+      const response = await fetch(`${API_URL}/api/farmers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -764,7 +763,7 @@ export default function App() {
     } catch (err) {
       setProfileSaveMessage(
         err.message === "Failed to fetch"
-          ? (language === "ta" ? "சேவையகத்தை அணுக முடியவில்லை. http://localhost:5000 இயங்குகிறதா எனச் சரிபார்க்கவும்." : "Could not reach the backend. Make sure it is running on http://localhost:5000.")
+          ? (language === "ta" ? `சேவையகத்தை அணுக முடியவில்லை. ${API_URL} இயங்குகிறதா எனச் சரிபார்க்கவும்.` : `Could not reach the backend. Make sure it is running on ${API_URL}.`)
           : err.message || (language === "ta" ? "விவசாயி விவரங்களைச் சேமிக்க முடியவில்லை." : "Could not save farmer profile.")
       );
     } finally {
@@ -926,7 +925,7 @@ export default function App() {
     }
 
     return advice;
-  }, [weather, risk, crop, growthStage, language, harvestDate]);
+  }, [weather, growthStage, language, harvestDate]);
 
   const alertSignature = useMemo(() => {
     if (!weather?.daily?.time?.length) return "";
@@ -943,16 +942,15 @@ export default function App() {
     ].join("|");
   }, [weather, location, village, crop, growthStage, harvestDate]);
 
-  useEffect(() => {
-    if (!weather?.daily?.time?.length || !alertSignature) {
-      setSmartAlerts([]);
-      return;
-    }
+  // Alerts are derived data, so they are computed with useMemo
+  // instead of effect + state.
+  const smartAlerts = useMemo(() => {
+    const d = weather?.daily;
+    if (!d?.time?.length || !alertSignature) return [];
 
-    const d = weather.daily;
-    const todayRain = d.precipitation_probability_max?.[Math.max(0, d.time.findIndex((date) => date === new Intl.DateTimeFormat("en-CA", { timeZone: weather?.timezone || "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())))] ?? 0;
-    const todayAmount = d.precipitation_sum?.[Math.max(0, d.time.findIndex((date) => date === new Intl.DateTimeFormat("en-CA", { timeZone: weather?.timezone || "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())))] ?? 0;
-    const todayTemp = d.temperature_2m_max?.[Math.max(0, d.time.findIndex((date) => date === new Intl.DateTimeFormat("en-CA", { timeZone: weather?.timezone || "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())))] ?? 0;
+    const todayRain = d.precipitation_probability_max?.[safeTodayIndex] ?? 0;
+    const todayAmount = d.precipitation_sum?.[safeTodayIndex] ?? 0;
+    const todayTemp = d.temperature_2m_max?.[safeTodayIndex] ?? 0;
     const harvestNear = Boolean(harvestDate) && (() => {
       const days = Math.ceil((new Date(`${harvestDate}T00:00:00`) - new Date(new Date().toDateString())) / 86400000);
       return days >= 0 && days <= 7;
@@ -1000,8 +998,8 @@ export default function App() {
       });
     }
 
-    setSmartAlerts(generated.filter((alert) => !dismissedAlertKeys.includes(alert.key)));
-  }, [weather, alertSignature, harvestDate, language, dismissedAlertKeys]);
+    return generated.filter((alert) => !dismissedAlertKeys.includes(alert.key));
+  }, [weather, alertSignature, harvestDate, language, dismissedAlertKeys, safeTodayIndex]);
 
   function dismissSmartAlert(key) {
     setDismissedAlertKeys((current) => {
@@ -1026,18 +1024,6 @@ export default function App() {
     : 0;
 
   const daily = weather?.daily;
-
-  const todayString = new Intl.DateTimeFormat("en-CA", {
-    timeZone: weather?.timezone || "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-
-  const todayIndex =
-    daily?.time?.findIndex((date) => date === todayString) ?? 0;
-
-  const safeTodayIndex = Math.max(0, todayIndex);
 
   const rainProbability =
     daily?.precipitation_probability_max?.[safeTodayIndex];
@@ -1306,7 +1292,7 @@ export default function App() {
                 <input
                   type="date"
                   value={harvestDate}
-                  min={new Date().toLocaleDateString("en-CA")}
+                  min={todayInputValue}
                   onChange={(event) =>
                     setHarvestDate(event.target.value)
                   }
@@ -1319,7 +1305,7 @@ export default function App() {
               <label className="field">
                 <span>{language === "ta" ? "மாநிலம்" : "State"}</span>
                 <select
-                  value={stateName === "Other" || !["Tamil Nadu", "Kerala", "Karnataka", "Andhra Pradesh", "Telangana"].includes(stateName) ? "Other" : stateName}
+                  value={stateName === "Other" || !KNOWN_STATES.includes(stateName) ? "Other" : stateName}
                   onChange={(event) => {
                     setStateName(event.target.value);
                     if (event.target.value === "Other") setCustomState("");
@@ -1356,6 +1342,7 @@ export default function App() {
                 <input
                   type="date"
                   value={sowingDate}
+                  max={todayInputValue}
                   onChange={(event) => setSowingDate(event.target.value)}
                 />
               </label>
@@ -1413,6 +1400,7 @@ export default function App() {
                 <span>
                   <strong>{t.selectVillage}:</strong>{" "}
                   {location.name}
+                  {location.admin2 ? `, ${location.admin2}` : ""}
                   {location.admin1 ? `, ${location.admin1}` : ""}
                   {location.country ? `, ${location.country}` : ""}
                 </span>
@@ -1426,7 +1414,7 @@ export default function App() {
                 type="button"
                 className="button button-primary"
                 onClick={saveFarmerProfile}
-                disabled={profileSaving}
+                disabled={profileSaving || !village.trim()}
               >
                 {profileSaving ? (language === "ta" ? "சுயவிவரம் சேமிக்கப்படுகிறது..." : "Saving profile...") : (language === "ta" ? "விவசாயி சுயவிவரத்தைச் சேமிக்கவும்" : "Save farmer profile")}
               </button>
@@ -1457,45 +1445,11 @@ export default function App() {
               </div>
             </div>
 
-            <div className="profile-fields">
-              <label className="field">
-                <span>{language === "ta" ? "ஆலோசனைக்கான மாநிலம்" : "Advisory state"}</span>
-                <select
-                  value={["Tamil Nadu", "Kerala", "Karnataka", "Andhra Pradesh", "Telangana"].includes(stateName) ? stateName : "Other"}
-                  onChange={(event) => {
-                    setStateName(event.target.value);
-                    if (event.target.value === "Other") setCustomState("");
-                  }}
-                >
-                  <option value="Tamil Nadu">{language === "ta" ? "தமிழ்நாடு" : "Tamil Nadu"}</option>
-                  <option value="Kerala">{language === "ta" ? "கேரளம்" : "Kerala"}</option>
-                  <option value="Karnataka">{language === "ta" ? "கர்நாடகம்" : "Karnataka"}</option>
-                  <option value="Andhra Pradesh">{language === "ta" ? "ஆந்திரப் பிரதேசம்" : "Andhra Pradesh"}</option>
-                  <option value="Telangana">{language === "ta" ? "தெலங்கானா" : "Telangana"}</option>
-                  <option value="Other">{language === "ta" ? "மற்றவை" : "Other"}</option>
-                </select>
-                {stateName === "Other" && (
-                  <input
-                    value={customState}
-                    onChange={(event) => setCustomState(event.target.value)}
-                    placeholder={t.otherStatePlaceholder}
-                    aria-label={t.otherStatePlaceholder}
-                  />
-                )}
-              </label>
-
-              <label className="field">
-                <span>{language === "ta" ? "ஆலோசனைக்கான மாவட்டம்" : "Advisory district"}</span>
-                <input
-                  value={district}
-                  onChange={(event) => setDistrict(event.target.value)}
-                  placeholder={language === "ta" ? "மாவட்டத்தின் பெயரை உள்ளிடவும்" : "Enter your district"}
-                />
-              </label>
-            </div>
-
             <p className="field-hint">
-              {language === "ta" ? "அறிவிப்பு உங்கள் மாவட்டத்திற்கானதா என்பதை உறுதிப்படுத்தி, பரிந்துரையைப் பின்பற்றுவதற்கு முன் வெளியிடப்பட்ட தேதியைச் சரிபார்க்கவும்." : "Confirm that the bulletin matches your district and check its issue date before following any recommendation."}
+              {language === "ta" ? "ஆலோசனைக்கான இடம்: " : "Advisories for: "}
+              <strong>{[district.trim(), effectiveState].filter(Boolean).join(", ") || "—"}</strong>
+              {" — "}
+              {language === "ta" ? "அறிவிப்பு உங்கள் மாவட்டத்திற்கானதா என்பதை உறுதிப்படுத்தி, பரிந்துரையைப் பின்பற்றுவதற்கு முன் வெளியிடப்பட்ட தேதியைச் சரிபார்க்கவும்." : "confirm that the bulletin matches your district and check its issue date before following any recommendation."}
             </p>
 
             <div className="advisory-links">
@@ -1689,7 +1643,7 @@ export default function App() {
 
                         <span>
                           <CloudRain size={14} />
-                          {rainProbability ?? "—"}% rain
+                          {rainProbability ?? "—"}% {language === "ta" ? "மழை" : "rain"}
                         </span>
                       </div>
                     </article>

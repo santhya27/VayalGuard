@@ -1,0 +1,789 @@
+/* =====================================================================
+   VayalGuard visual refresh
+   Loaded AFTER index.css, so it overrides the old look.
+   To undo everything: delete this file and its import line in main.jsx.
+
+   Palette
+   Field Night  #12301f  sidebar, hero, headings
+   Paddy        #2f7a3e  primary buttons, "low risk"
+   Turmeric     #f0a500  today, active menu, pending tasks, "medium risk"
+   Monsoon      #2a6f97  rain
+   Chilli       #d9482b  "high risk"
+   ===================================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;500;600;700&display=swap");
+
+/* ---------- 1. Foundations ---------- */
+:root {
+  font-family: "DM Sans", "Noto Sans Tamil", sans-serif;
+  color: #1d2a20;
+  background: #eef2e7;
+  --green: #2f7a3e;
+  --green-dark: #12301f;
+  --green-light: #e4f1de;
+  --text: #1d2a20;
+  --muted: #5b695f;
+  --border: #dde5d0;
+  --turmeric: #f0a500;
+  --turmeric-soft: #fff3d1;
+  --monsoon: #2a6f97;
+  --monsoon-soft: #e2f0f8;
+  --chilli: #d9482b;
+  --shadow: 0 1px 2px rgba(18, 48, 31, 0.06), 0 8px 24px rgba(18, 48, 31, 0.06);
+}
+
+/* The old file had a broken "*" rule, so border-box was never applied. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  line-height: 1.6;
+}
+
+/* Manrope has no Tamil letters; the browser falls back to Noto Sans Tamil per character. */
+.brand h1,
+.sidebar-tip h3,
+.page-heading h2,
+.section-title h3,
+.card-heading h3,
+.weather-hero h3,
+.empty-state h3,
+.risk-details h4,
+.temperature,
+.stat-value,
+.forecast-temp,
+.action-count,
+.task-number,
+.crop-advice-number {
+  font-family: "Manrope", "Noto Sans Tamil", sans-serif;
+}
+
+/* Small caps-style labels become readable Title Case */
+.nav-label,
+.muted-label,
+.eyebrow {
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+  font-size: 12px;
+}
+
+.card {
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+/* ---------- 2. Sidebar: paddy-field green with faint crop rows ---------- */
+.sidebar {
+  background:
+    repeating-linear-gradient(105deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 16px),
+    linear-gradient(180deg, #14361f 0%, #0e2817 100%);
+}
+
+.brand-mark {
+  background: var(--turmeric);
+  color: #12301f;
+  border-radius: 14px;
+}
+
+.brand span {
+  color: #cfe0cf;
+}
+
+.nav-label {
+  color: #b7d0bb;
+}
+
+.nav-item {
+  color: #d6e5d8;
+  font-weight: 500;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nav-item.active {
+  background: rgba(240, 165, 0, 0.16);
+  box-shadow: inset 4px 0 var(--turmeric);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.sidebar-tip {
+  background: rgba(240, 165, 0, 0.1);
+  border-color: rgba(240, 165, 0, 0.3);
+}
+
+.tip-icon {
+  color: #ffd666;
+}
+
+.sidebar-tip p,
+.sidebar-footer {
+  color: #cfe0cf;
+}
+
+/* ---------- 3. Top bar and page heading ---------- */
+.topbar {
+  border-bottom: 1px solid var(--border);
+}
+
+.breadcrumb,
+.live-label {
+  color: var(--muted);
+}
+
+.language-button {
+  border-radius: 999px;
+  border-color: #cdd6c1;
+  font-weight: 600;
+  color: #1d2a20;
+}
+
+.language-button:hover {
+  background: var(--turmeric-soft);
+  border-color: var(--turmeric);
+}
+
+.eyebrow {
+  color: var(--green);
+}
+
+.page-heading h2 {
+  color: #12301f;
+  font-size: clamp(26px, 2.8vw, 36px);
+  letter-spacing: -0.02em;
+}
+
+.page-heading p {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+/* ---------- 4. Buttons and form fields ---------- */
+.button {
+  border-radius: 12px;
+}
+
+.button-primary {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.button-primary:hover {
+  background: #246430;
+}
+
+.button-secondary {
+  border-color: #cdd6c1;
+  color: #2c3b30;
+}
+
+.button-secondary:hover {
+  background: #f1f6ea;
+}
+
+.section-icon,
+.round-icon {
+  background: var(--green-light);
+  color: var(--green);
+  border-radius: 12px;
+}
+
+.section-title h3,
+.card-heading h3 {
+  font-size: 18px;
+  color: #12301f;
+}
+
+.section-title p,
+.card-subtitle {
+  color: var(--muted);
+}
+
+.field > span {
+  color: #2c3b30;
+}
+
+.field input,
+.field select {
+  border: 1px solid #cdd6c1;
+  border-radius: 10px;
+  background: #fbfcf8;
+  color: #1d2a20;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: var(--green);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(47, 122, 62, 0.2);
+}
+
+.field-value {
+  display: flex;
+  align-items: center;
+  min-height: 43px;
+  padding: 0 12px;
+  border: 1px dashed #bcc8ad;
+  border-radius: 10px;
+  background: #f4f7ee;
+  color: #3d4b41;
+  font-size: 13px;
+}
+
+.field-hint,
+.location-confirmation {
+  color: var(--muted);
+}
+
+.small-disclaimer {
+  color: var(--muted);
+  border-top-color: var(--border);
+  font-size: 12px;
+}
+
+.empty-illustration {
+  background: var(--turmeric-soft);
+  color: #a56a00;
+  border-radius: 50%;
+}
+
+/* ---------- 5. Weather hero: the memorable element ---------- */
+.weather-hero {
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 88% 10%, rgba(240, 165, 0, 0.6) 0, rgba(240, 165, 0, 0.18) 90px, transparent 190px),
+    repeating-linear-gradient(105deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 16px),
+    linear-gradient(150deg, #14361f 0%, #1f5a2e 100%);
+}
+
+.weather-hero::after {
+  display: none;
+}
+
+.weather-hero .muted-label {
+  color: #d6e9d0;
+}
+
+.weather-hero h3 {
+  font-size: 20px;
+}
+
+.hero-weather-icon {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffd666;
+  border-radius: 50%;
+}
+
+.temperature {
+  font-size: 68px;
+  letter-spacing: -3px;
+}
+
+.weather-description {
+  font-size: 15px;
+  color: #eaf4e6;
+  font-weight: 500;
+}
+
+.temperature-range,
+.hero-bottom,
+.weather-hero-top p {
+  font-size: 13px;
+  color: #dcebd8;
+}
+
+/* ---------- 6. Stat cards: colour-coded top edge ---------- */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 5px;
+}
+
+.stat-card:nth-child(2)::before {
+  background: var(--monsoon);
+}
+
+.stat-card:nth-child(3)::before {
+  background: var(--turmeric);
+}
+
+.stat-top {
+  color: #2c3b30;
+  font-size: 14px;
+}
+
+.stat-icon.blue {
+  background: var(--monsoon-soft);
+  color: var(--monsoon);
+}
+
+.stat-icon.orange {
+  background: var(--turmeric-soft);
+  color: #a56a00;
+}
+
+.stat-value {
+  font-size: 44px;
+  color: #12301f;
+}
+
+.stat-card > p,
+.min-max {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.stat-progress {
+  height: 8px;
+  background: var(--monsoon-soft);
+  border-radius: 999px;
+}
+
+.stat-progress span {
+  background: var(--monsoon);
+}
+
+/* ---------- 7. Risk card: red / amber / green at a glance ---------- */
+.risk-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.risk-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 6px;
+  background: #c9d3bd;
+}
+
+.risk-card:has(.risk-summary.low)::before {
+  background: #3c9a4d;
+}
+
+.risk-card:has(.risk-summary.medium)::before {
+  background: var(--turmeric);
+}
+
+.risk-card:has(.risk-summary.high)::before {
+  background: var(--chilli);
+}
+
+.risk-badge {
+  padding: 9px 15px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.risk-badge.low {
+  background: #2f7a3e;
+  color: #ffffff;
+}
+
+.risk-badge.medium {
+  background: var(--turmeric);
+  color: #3a2600;
+}
+
+.risk-badge.high {
+  background: #c53a1f;
+  color: #ffffff;
+}
+
+.risk-badge.unknown {
+  background: #e8ece1;
+  color: #47554b;
+}
+
+.risk-summary {
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 14px;
+  border-left: 6px solid;
+}
+
+.risk-summary.low {
+  background: #e7f4e5;
+  border-left-color: #3c9a4d;
+  color: #1d5a2a;
+}
+
+.risk-summary.medium {
+  background: #fff3d1;
+  border-left-color: var(--turmeric);
+  color: #6b4600;
+}
+
+.risk-summary.high {
+  background: #fde8e2;
+  border-left-color: var(--chilli);
+  color: #8a2412;
+}
+
+.risk-summary.unknown {
+  background: #eef1e8;
+  border-left-color: #b4c0a6;
+  color: #3d4b41;
+}
+
+.risk-summary-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-top: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.risk-summary strong {
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.risk-summary p {
+  font-size: 14px;
+  opacity: 1;
+}
+
+.risk-details h4 {
+  margin: 22px 0 10px;
+  font-size: 15px;
+  color: #12301f;
+}
+
+.risk-details ul {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.risk-details li {
+  position: relative;
+  margin: 0;
+  padding: 10px 12px 10px 34px;
+  border-radius: 10px;
+  background: #f4f7ee;
+  color: #34433a;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.risk-details li::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 17px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.risk-card:has(.risk-summary.medium) .risk-details li::before {
+  background: var(--turmeric);
+}
+
+.risk-card:has(.risk-summary.high) .risk-details li::before {
+  background: var(--chilli);
+}
+
+/* ---------- 8. Checklist and action plan: big, tappable task cards ---------- */
+.checklist-progress {
+  height: 10px;
+  border-radius: 999px;
+  background: #e3e9d6;
+}
+
+.checklist-progress span {
+  background: linear-gradient(90deg, #3c9a4d, #86c86f);
+}
+
+.checklist-progress-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.checklist-progress-label strong {
+  font-size: 16px;
+}
+
+.task-list {
+  gap: 10px;
+}
+
+.task-row {
+  width: 100%;
+  padding: 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fbfcf8;
+  color: #8a9a8d;
+  transition: background 0.15s;
+}
+
+.task-row:hover {
+  background: #f1f6ea;
+}
+
+.task-row strong,
+.full-task-content h4 {
+  color: #1d2a20;
+  font-size: 15px;
+}
+
+.task-row small,
+.full-task-content p {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.task-row.task-done,
+.full-task.task-done {
+  background: #eef7ea;
+  border-color: #bcdcb4;
+}
+
+.task-row.task-done > svg,
+.task-done .task-check {
+  color: #2f7a3e;
+}
+
+.task-done strong,
+.task-done .full-task-content h4 {
+  color: #6c7d70;
+}
+
+.text-button {
+  color: var(--green);
+  font-size: 14px;
+}
+
+.action-count {
+  background: var(--green-light);
+  color: var(--green);
+  border-radius: 50%;
+}
+
+.full-task-list {
+  border-top: 0;
+}
+
+.full-task {
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fbfcf8;
+}
+
+.task-check {
+  color: #8a9a8d;
+}
+
+.task-number {
+  color: var(--green);
+}
+
+.task-status {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--turmeric-soft);
+  color: #7a5200;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.task-status.done {
+  background: #d9efd2;
+  color: #1d5a2a;
+}
+
+.all-done-message {
+  color: #1d5a2a;
+}
+
+/* ---------- 9. 7-day forecast: today in turmeric, rain in blue ---------- */
+.forecast-day {
+  padding: 16px 6px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.forecast-today {
+  border: 2px solid var(--turmeric);
+  background: var(--turmeric-soft);
+}
+
+.forecast-date {
+  color: #47554b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.forecast-today .forecast-date {
+  color: #7a5200;
+}
+
+.forecast-icon {
+  color: #4c8a57;
+}
+
+.forecast-condition {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.forecast-temp {
+  font-size: 22px;
+  color: #12301f;
+}
+
+.forecast-min {
+  color: #6c7a70;
+  font-size: 13px;
+}
+
+.forecast-rain {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--monsoon-soft);
+  color: var(--monsoon);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.forecast-mm {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.forecast-location,
+.forecast-legend {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.forecast-legend span:first-child {
+  color: var(--monsoon);
+}
+
+/* ---------- 10. Alerts and crop advice ---------- */
+.smart-alert {
+  border: 1px solid #f0d28a;
+  border-left: 6px solid var(--turmeric);
+  border-radius: 14px;
+  background: #fff8e1;
+}
+
+.smart-alert-symbol {
+  background: var(--turmeric);
+  color: #3a2600;
+  border-radius: 50%;
+}
+
+.smart-alert-content strong {
+  color: #3a2600;
+  font-size: 15px;
+}
+
+.smart-alert-content p,
+.smart-alert-content small {
+  color: #5a4a1f;
+  font-size: 14px;
+}
+
+.smart-alert-empty {
+  background: #e7f4e5;
+  color: #1d5a2a;
+  font-size: 14px;
+}
+
+.crop-advice-number {
+  background: var(--green);
+  color: #ffffff;
+  border-radius: 50%;
+}
+
+.crop-advice-item strong {
+  color: #12301f;
+  font-size: 15px;
+}
+
+.crop-advice-item p {
+  color: #3d4b41;
+  font-size: 14px;
+}
+
+.data-footer,
+.source-label {
+  color: var(--muted);
+}
+
+/* ---------- 11. Roomier cards on tablet and desktop only (keeps phone padding) ---------- */
+@media (min-width: 761px) {
+  .farm-profile {
+    padding: 26px 28px 22px;
+  }
+
+  .risk-card,
+  .checklist-card,
+  .forecast-card,
+  .full-actions-card,
+  .smart-alerts-card,
+  .crop-advice-card {
+    padding: 26px;
+  }
+
+  .stat-card {
+    padding: 24px;
+  }
+
+  .task-number {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--green-light);
+    font-size: 12px;
+  }
+}
+
+/* ---------- 12. Phone tweaks ---------- */
+@media (max-width: 760px) {
+  .temperature {
+    font-size: 56px;
+  }
+
+  .stat-value {
+    font-size: 38px;
+  }
+}
+
+/* The old reduced-motion rule was broken by the "*" typo; this restores it. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
